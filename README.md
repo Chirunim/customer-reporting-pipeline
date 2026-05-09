@@ -1,35 +1,82 @@
 # Energy Retail Customer Reporting Pipeline
 
-This pipeline automates the generation, processing, and reporting of customer onboarding data for an energy retail business. It simulates a weekly data extract from a Kraken-style customer management system, applies data quality checks and derived metrics, runs analytical SQL queries via DuckDB, and produces a structured report covering First Bill SLA performance and overall onboarding health. The pipeline is designed to run on a schedule via Apache Airflow and feed into Power BI for business-facing dashboards.
+This project is an end-to-end automated data pipeline built to solve a critical problem in energy retail operations: too much data and too few resources to process it manually. The pipeline ingests customer data from a source system, cleans and transforms it using Python, queries it using SQL via DuckDB, orchestrates the full workflow using Apache Airflow, and delivers two production-ready reports in Power BI. The data used in this project is simulated to mirror the structure and behaviour of a real energy retail customer management system export. All distributions, percentages, and customer behaviours reflect realistic energy retail patterns.
 
 ---
 
 ## Pipeline Architecture
 
 ```
-Simulated Kraken Stream
+Source System Export
         |
         v
-  Python (data generation + cleaning)
+Python Cleaning & Transformation
         |
         v
-  SQL queries (DuckDB)
+SQL Queries (DuckDB)
         |
         v
-  Apache Airflow (orchestration)
+Airflow Orchestration
         |
         v
-  Power BI (dashboards)
+Power BI Dashboard
+        |
+        v
+Excel Export on Demand
 ```
 
 ---
 
 ## Reports Produced
 
-| Report | Description |
-|---|---|
-| **First Bill SLA Breakdown** | Customer counts and percentages by bill band (0–14, 15–28, 29–42, 43+ days), with GSOP risk flagging |
-| **Onboarding Health Scorecard** | % fully onboarded by region and tariff type, plus individual completion rates for PSR, Direct Debit, Smart Meter and App registration |
+### Report 1: First Bill SLA Tracker
+
+Tracks how long each customer takes to receive their first bill, broken into bands of 0–14 days, 15–28 days, 29–42 days, and 43 or more days. Surfaces the percentage of customers meeting the Ofgem SLA window, flags cohorts at GSOP risk, and shows week-on-week trends.
+
+### Report 2: Onboarding Health Scorecard
+
+Tracks whether customers were onboarded with all health checks complete, including PSR registration, Direct Debit setup, Smart Meter installation, and app or online account registration. Shows the percentage fully onboarded, which checks are most commonly missed, and which weekly intake cohorts had poor onboarding scores.
+
+---
+
+## Insights
+
+### First Bill SLA Insights
+
+- **74.59% of customers** receive their first bill within 14 days — just below the 80% Ofgem target, flagging an **AT RISK** status.
+- The **43+ day band accounts for 3%** of billed customers — a small but critical cohort that could trigger GSOP financial penalties if left unaddressed.
+- The weekly trend line enables the team to identify whether SLA performance is improving or deteriorating over time, supporting proactive intervention rather than reactive firefighting.
+
+### Onboarding Health Insights
+
+- **Smart Meter installation** is consistently the lowest-completed health check, suggesting a supply chain or scheduling bottleneck that requires operational attention.
+- Weekly cohort analysis reveals which intake weeks had poor onboarding scores, helping the team trace problems back to specific campaigns or processes.
+- **Customers without Direct Debit set up** represent both a credit risk and a potential churn indicator for the business.
+
+---
+
+## Recommendations
+
+### Operational Recommendations
+
+1. Prioritise customers in the **43+ day band** for immediate billing investigation before GSOP penalties are triggered.
+2. Investigate the **Smart Meter installation bottleneck** through a targeted operational review to lift the fully onboarded percentage across all cohorts.
+3. Set **weekly SLA improvement targets** using the trend line rather than relying on the overall figure alone, enabling earlier identification of deteriorating performance.
+4. Automate **early warnings using Power BI threshold alerts** so the team is notified before a breach occurs rather than after it has already happened.
+
+### Training Recommendations
+
+5. Deliver targeted training to Energy Specialists on the importance and process of **PSR registration, Smart Meter installation, and Direct Debit setup** so they can have more informed and confident conversations with customers at the point of onboarding.
+
+### Marketing Recommendations
+
+6. Launch **targeted marketing campaigns** encouraging customers to sign up for Direct Debits, clearly highlighting the discounts available to customers who choose to pay by Direct Debit.
+7. Run **Smart Meter awareness campaigns** that directly address the following common myths and misconceptions:
+   - Smart meters do not emit radiation.
+   - Smart meters do not listen to or record customer conversations.
+   - Smart meters do not add unnecessary readings to the meter.
+   - Smart meters are only used to transmit readings automatically, removing the need for manual meter submissions entirely.
+8. Develop **customer communications** that connect each onboarding health check to a tangible personal benefit, making it clear to customers why completing each step improves their overall experience.
 
 ---
 
@@ -37,54 +84,36 @@ Simulated Kraken Stream
 
 | Tool | Role |
 |---|---|
-| **Python** | Data generation, cleaning, derived metrics |
-| **NumPy / Pandas** | Vectorised data simulation and transformation |
-| **SQL** | Analytical queries (SLA trends, health checks) |
-| **DuckDB** | In-process SQL engine — queries Pandas DataFrames directly |
-| **Apache Airflow** | Pipeline orchestration and scheduling |
-| **Power BI** | Business dashboards (connected to pipeline output) |
+| **Python** | Data generation, cleaning, transformation, and summary output |
+| **SQL via DuckDB** | Business logic queries and report table production |
+| **Apache Airflow** | Pipeline orchestration and scheduling every Monday at 6am |
+| **Power BI** | Interactive dashboards, KPI cards, RAG status indicators, and threshold alerts |
+| **Excel** | On-demand export from Power BI for stakeholder sharing |
 
 ---
 
 ## How to Run
 
-### 1. Install dependencies
+**Step 1** — Place the source system export in the `data/` folder as `kraken_export.csv`.
 
-```bash
-pip install pandas numpy duckdb apache-airflow
-```
-
-### 2. Generate the base dataset
-
-Generates 250,000 simulated customers with realistic onboarding data and saves to `data/clean_output.csv`:
-
+**Step 2** — Generate and clean the dataset:
 ```bash
 python scripts/clean_data.py
 ```
 
-### 3. Simulate a weekly data stream
-
-Each run adds 2,000 new customers to the dataset, simulating one week of new Kraken data arriving:
-
+**Step 3** — Add the latest weekly batch of customers:
 ```bash
 python scripts/simulate_stream.py
 ```
 
-Run this repeatedly to simulate multiple weeks. The week counter increments automatically.
-
-### 4. Generate the weekly report
-
-Runs all SQL queries via DuckDB and prints + saves the Good Energy Weekly Report:
-
+**Step 4** — Produce the plain English summary report:
 ```bash
 python scripts/generate_summary.py
 ```
 
-The report is saved to `data/weekly_summary.txt`.
+**Step 5** — Open Power BI and click **Refresh** to update the dashboard.
 
-### 5. Run via Airflow (scheduled)
-
-The DAG `good_energy_weekly_pipeline` runs automatically every Monday at 06:00 and executes steps 2–4 in sequence. To load it into Airflow, copy or symlink the `dags/` folder to your Airflow DAGs directory.
+**Step 6** — Trigger the full pipeline automatically by activating the Airflow DAG named `good_energy_weekly_pipeline`, which runs every Monday at 6am.
 
 ---
 
@@ -93,19 +122,20 @@ The DAG `good_energy_weekly_pipeline` runs automatically every Monday at 06:00 a
 ```
 customer-reporting-pipeline/
 ├── dags/
-│   └── good_energy_dag.py       # Airflow DAG — runs every Monday at 06:00
+│   └── good_energy_dag.py          # Airflow DAG orchestrating the full pipeline
 ├── scripts/
-│   ├── clean_data.py            # Generates 250k customers, derives metrics, saves CSV
-│   ├── simulate_stream.py       # Adds 2,000 new customers per run (weekly stream)
-│   ├── run_queries.sql          # Four analytical SQL queries
-│   └── generate_summary.py     # Runs queries via DuckDB, prints and saves report
-├── data/                        # Generated output files (not committed)
-├── powerbi/                     # Power BI report files
-└── PIPELINE.md                  # Developer reference
+│   ├── clean_data.py               # Data generation and cleaning
+│   ├── simulate_stream.py          # Weekly stream simulation (2,000 new customers per run)
+│   ├── run_queries.sql             # Business logic SQL queries
+│   └── generate_summary.py        # Runs queries via DuckDB, produces plain English report
+├── data/                           # Generated CSV files (excluded from version control)
+├── powerbi/
+│   └── energy_reporting_dashboard.pbix   # Power BI dashboard file
+└── PIPELINE.md                     # Developer reference
 ```
 
 ---
 
 ## Data Note
 
-All customer data in this pipeline is fully simulated using NumPy and Pandas. The data is generated to reflect the structure and characteristics of a real energy retail customer management system export from a Kraken-based platform — including onboarding dates, first bill timelines, tariff types, regional distribution, and onboarding flag completion rates. No real customer data is used at any point.
+All data in this project is synthetically generated to mirror the structure and statistical behaviour of a real energy retail customer management system. No real customer data is used at any point. The simulated dataset reflects realistic energy retail distributions across billing timelines, regional spread, tariff types, and onboarding health metrics.
