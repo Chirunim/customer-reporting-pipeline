@@ -1,7 +1,5 @@
 # PIPELINE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Purpose
 
 Automated pipeline for **First Bill SLA and Onboarding Health Reporting** in an energy retail context. Simulates weekly Kraken data stream arrivals, runs SQL-based analytics via DuckDB, and produces structured reports for Power BI consumption. Orchestrated by Apache Airflow.
