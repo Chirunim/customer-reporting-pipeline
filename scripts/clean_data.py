@@ -23,8 +23,20 @@ def generate_customers(n: int, seed: int) -> pd.DataFrame:
     )
 
     has_bill = rng.random(n) < 0.85
-    bill_offsets = pd.to_timedelta(rng.integers(5, 61, size=n), unit="D")
-    first_bill_dates = (supply_start_dates + bill_offsets).where(has_bill, other=pd.NaT)
+
+    # Ofgem SLA-realistic billing distribution (applied to billed customers only):
+    # 75% → 0–14 days, 15% → 15–28 days, 7% → 29–42 days, 3% → 43+ days
+    bands = rng.choice(4, size=n, p=[0.75, 0.15, 0.07, 0.03])
+    bill_offsets = np.select(
+        [bands == 0, bands == 1, bands == 2],
+        [rng.integers(5,  15, size=n),
+         rng.integers(15, 29, size=n),
+         rng.integers(29, 43, size=n)],
+        default=rng.integers(43, 91, size=n),
+    )
+    first_bill_dates = (supply_start_dates + pd.to_timedelta(bill_offsets, unit="D")).where(
+        has_bill, other=pd.NaT
+    )
 
     return pd.DataFrame({
         "customer_id":       [f"A-{i+1:06d}" for i in range(n)],
